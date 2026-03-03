@@ -14,22 +14,29 @@ set -euo pipefail
 
 echo "[lb_config] Initialising TinyOS Agent live-build configuration..."
 
+# Detect live-build version to use correct flags
+LB_VERSION=$(lb config --version 2>&1 | grep -oP '\d+\.\d+' | head -1 || echo "3.0")
+echo "[lb_config] live-build version: ${LB_VERSION}"
+
+# Ubuntu's live-build 3.0 uses different flag names than Debian's 1:20xxxxxx
+# --bootloaders → --bootloader (singular, grub|syslinux|yaboot)
+# --uefi-secure-boot, --hostname, --username → not available (use bootappend-live)
 lb config \
   --mode debian \
   --system live \
   --distribution bookworm \
   --architecture amd64 \
   --archive-areas "main contrib non-free non-free-firmware" \
-  --debian-installer none \
+  --debian-installer false \
   --binary-images iso-hybrid \
-  --bootloaders grub-efi \
-  --uefi-secure-boot disable \
+  --bootloader grub \
   --linux-flavours amd64 \
-  --linux-packages "linux-image-amd64 linux-headers-amd64" \
+  --linux-packages "linux-image linux-headers" \
   --apt-recommends false \
   --apt-secure true \
   --memtest none \
   --checksums sha256 \
+  --initsystem systemd \
   --mirror-bootstrap "https://deb.debian.org/debian" \
   --mirror-chroot "https://deb.debian.org/debian" \
   --mirror-chroot-security "https://security.debian.org/debian-security" \
@@ -39,9 +46,7 @@ lb config \
   --iso-preparer "TinyOS Agent Build System" \
   --iso-publisher "TinyOS Agent" \
   --iso-volume "TINYOS-AGENT" \
-  --bootappend-live "boot=live components quiet splash username=agent hostname=tinyos" \
-  --hostname "tinyos" \
-  --username "agent"
+  --bootappend-live "boot=live components quiet splash username=agent hostname=tinyos"
 
 echo "[lb_config] Configuration complete."
 echo "  Run 'lb build' or 'make base-image' to build the ISO image."

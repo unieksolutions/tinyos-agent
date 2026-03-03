@@ -61,7 +61,8 @@ base-image: $(BUILD_DIR)/lb_config
 	@echo "    Build dir : $(BUILD_DIR)"
 	@echo "    Output ISO: $(ISO_PATH)"
 	@# Initialise lb config if not already done
-	@if [ ! -f "$(BUILD_DIR)/config/common" ]; then \
+	@# lb 3.0 creates config/common; newer lb creates .build/config
+	@if [ ! -f "$(BUILD_DIR)/config/common" ] && [ ! -d "$(BUILD_DIR)/.build" ]; then \
 	    echo "==> Running lb_config to initialise build configuration..."; \
 	    cd $(BUILD_DIR) && sudo bash lb_config; \
 	fi

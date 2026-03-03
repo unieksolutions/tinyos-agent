@@ -1,0 +1,40 @@
+#!/bin/bash
+# 0060-install-agent.hook.chroot — Install TinyOS Agent Python application
+# Runs inside the chroot during image build.
+
+set -euo pipefail
+
+echo "[hook:install-agent] Installing TinyOS Agent application..."
+
+# ── Copy agent package to the image ──────────────────────────────────────────
+# The agent source is injected via config/includes.chroot/opt/tinyos-agent/
+# This hook ensures the systemd service is properly linked.
+
+AGENT_DIR="/opt/tinyos-agent"
+
+# Verify the agent was copied (via includes.chroot)
+if [ ! -f "${AGENT_DIR}/agent/main.py" ]; then
+    echo "[hook:install-agent] WARNING: Agent source not found at ${AGENT_DIR}/agent/"
+    echo "       Ensure config/includes.chroot/opt/tinyos-agent/agent/ exists."
+    exit 0  # Non-fatal: image still usable without agent
+fi
+
+# ── Install systemd service ─────────────────────────────────────────────────
+if [ -f "${AGENT_DIR}/agent/tinyos-agent.service" ]; then
+    cp "${AGENT_DIR}/agent/tinyos-agent.service" /etc/systemd/system/tinyos-agent.service
+    # Enable for boot (systemd will start it after multi-user.target)
+    ln -sf /etc/systemd/system/tinyos-agent.service \
+           /etc/systemd/system/multi-user.target.wants/tinyos-agent.service
+    echo "[hook:install-agent] Systemd service installed and enabled."
+fi
+
+# ── Ensure data directories exist ───────────────────────────────────────────
+mkdir -p "${AGENT_DIR}/data"
+chmod 755 "${AGENT_DIR}/data"
+
+# ── Set ownership ───────────────────────────────────────────────────────────
+# The 'agent' user is created by 0030-agent-user.hook.chroot
+# At this point in the chroot, the user may not exist yet, so we use chown -f
+chown -Rf 1000:1000 "${AGENT_DIR}" 2>/dev/null || true
+
+echo "[hook:install-agent] Done."

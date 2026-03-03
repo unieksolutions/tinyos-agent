@@ -1,0 +1,24 @@
+[Unit]
+Description=TinyOS Agent — Interactive system agent
+After=multi-user.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=agent
+WorkingDirectory=/opt/tinyos-agent
+ExecStart=/usr/bin/python3 -m agent.main
+StandardInput=tty
+StandardOutput=tty
+TTYPath=/dev/tty1
+TTYReset=yes
+TTYVHangup=yes
+TTYVTDisallocate=yes
+Restart=on-failure
+RestartSec=5
+Environment=TINYOS_DATA_DIR=/opt/tinyos-agent/data
+Environment=PYTHONPATH=/opt/tinyos-agent
+Environment=TERM=linux
+
+[Install]
+WantedBy=multi-user.target

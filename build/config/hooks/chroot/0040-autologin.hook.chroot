@@ -1,0 +1,18 @@
+#!/bin/bash
+# 0040-autologin.hook.chroot — Configure agetty auto-login on tty1
+# This provides a shell immediately on boot without interactive login.
+
+set -euo pipefail
+
+echo "[hook:autologin] Configuring auto-login on tty1..."
+
+mkdir -p /etc/systemd/system/getty@tty1.service.d
+
+cat > /etc/systemd/system/getty@tty1.service.d/autologin.conf <<'EOF'
+[Service]
+ExecStart=
+ExecStart=-/sbin/agetty --autologin agent --noclear %I $TERM
+Type=idle
+EOF
+
+echo "[hook:autologin] Done."

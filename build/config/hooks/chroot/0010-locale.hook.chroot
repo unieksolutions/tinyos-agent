@@ -1,0 +1,52 @@
+#!/bin/bash
+# 0010-locale.hook.chroot — Configure locale, keyboard layout, and timezone
+# Runs inside the chroot during image build.
+
+set -euo pipefail
+
+echo "[hook:locale] Configuring locale, keyboard, timezone..."
+
+# ── Locale ────────────────────────────────────────────────────────────────────
+export DEBIAN_FRONTEND=noninteractive
+
+apt-get install -y locales
+
+# Enable en_US.UTF-8
+sed -i 's/^# *en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen
+locale-gen
+
+# Set system-wide locale
+cat > /etc/locale.conf <<'EOF'
+LANG=en_US.UTF-8
+LC_ALL=en_US.UTF-8
+EOF
+
+update-locale LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8
+
+# ── Keyboard (console) ────────────────────────────────────────────────────────
+apt-get install -y console-setup keyboard-configuration
+
+cat > /etc/default/keyboard <<'EOF'
+# Keyboard configuration
+XKBMODEL="pc105"
+XKBLAYOUT="us"
+XKBVARIANT=""
+XKBOPTIONS=""
+BACKSPACE="guess"
+EOF
+
+cat > /etc/default/console-setup <<'EOF'
+# Console font and keymap setup
+ACTIVE_CONSOLES="/dev/tty[1-6]"
+CHARMAP="UTF-8"
+CODESET="Lat15"
+FONTFACE="Fixed"
+FONTSIZE="8x16"
+VIDEOMODE=
+EOF
+
+# ── Timezone ──────────────────────────────────────────────────────────────────
+ln -sf /usr/share/zoneinfo/UTC /etc/localtime
+echo "UTC" > /etc/timezone
+
+echo "[hook:locale] Done."

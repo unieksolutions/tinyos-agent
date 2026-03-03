@@ -1,0 +1,117 @@
+# TinyOS Agent — chroot package list
+# These packages are installed into the live image root filesystem.
+# Format: one package per line; comments start with '#'.
+
+# ── Core system ────────────────────────────────────────────────────────────────
+systemd
+systemd-sysv
+dbus
+udev
+procps
+util-linux
+kmod
+lsb-base
+
+# ── Shell & essential tools ────────────────────────────────────────────────────
+bash
+coreutils
+grep
+sed
+gawk
+findutils
+diffutils
+less
+vim-tiny
+nano
+curl
+wget
+ca-certificates
+gnupg
+lsof
+strace
+file
+tree
+htop
+rsync
+zip
+unzip
+jq
+
+# ── Network ─────────────────────────────────────────────────────────────────────
+iproute2
+iputils-ping
+net-tools
+dnsutils
+openssh-server
+openssh-client
+nftables
+avahi-daemon
+
+# ── Storage & filesystems ──────────────────────────────────────────────────────
+e2fsprogs
+dosfstools
+parted
+gdisk
+lvm2
+cryptsetup
+smartmontools
+squashfs-tools
+
+# ── Python runtime ─────────────────────────────────────────────────────────────
+python3
+python3-pip
+python3-venv
+python3-setuptools
+python3-wheel
+python3-requests
+python3-yaml
+python3-toml
+
+# ── Database ───────────────────────────────────────────────────────────────────
+sqlite3
+
+# ── GPU / Vulkan — broad hardware coverage ────────────────────────────────────
+libvulkan1
+vulkan-tools
+mesa-vulkan-drivers
+libgl1-mesa-dri
+libglx-mesa0
+mesa-utils
+vainfo
+clinfo
+
+# ── Firmware — AMD GPU ─────────────────────────────────────────────────────────
+firmware-linux
+firmware-linux-nonfree
+firmware-linux-free
+firmware-amd-graphics
+
+# ── Firmware — NVIDIA GPU ──────────────────────────────────────────────────────
+firmware-nvidia-graphics
+
+# ── Firmware — broad peripheral coverage ──────────────────────────────────────
+firmware-atheros
+firmware-brcm80211
+firmware-iwlwifi
+firmware-realtek
+firmware-misc-nonfree
+
+# ── Live system support ────────────────────────────────────────────────────────
+live-boot
+live-config
+live-config-systemd
+user-setup
+
+# ── Hardware detection & USB ───────────────────────────────────────────────────
+pciutils
+usbutils
+hdparm
+acpid
+lm-sensors
+
+# ── Build / dev essentials (for on-device installs) ────────────────────────────
+git
+make
+gcc
+g++
+build-essential

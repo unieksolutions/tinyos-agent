@@ -1,0 +1,38 @@
+#!/bin/bash
+# 0030-agent-user.hook.chroot — Configure the 'agent' system user and basic dirs
+# Runs inside the chroot during image build.
+
+set -euo pipefail
+
+echo "[hook:agent-user] Setting up agent user..."
+
+# live-config creates the user defined by --username at boot.
+# This hook pre-creates the home dir skeleton and groups.
+
+# Ensure video/render groups exist (for GPU access)
+groupadd -f video
+groupadd -f render
+groupadd -f dialout
+
+# Create a sudoers drop-in that lets the live agent user run without password.
+# Scoped to the specific commands the TinyOS Agent runtime requires on a live USB.
+# For broader interactive use, live-config's own sudoers rule handles NOPASSWD.
+mkdir -p /etc/sudoers.d
+cat > /etc/sudoers.d/tinyos-agent <<'EOF'
+# TinyOS Agent live user: passwordless sudo for required system commands.
+# This is a live USB image; the agent user is the only interactive user.
+Cmnd_Alias TINYOS_CMDS = /usr/bin/apt-get, /usr/bin/apt, /usr/bin/systemctl, \
+    /sbin/reboot, /sbin/poweroff, /sbin/shutdown, /usr/bin/journalctl, \
+    /bin/mount, /bin/umount, /usr/bin/install, /opt/tinyos-agent/*
+agent ALL=(ALL) NOPASSWD: TINYOS_CMDS
+EOF
+chmod 0440 /etc/sudoers.d/tinyos-agent
+# Validate the sudoers drop-in to catch syntax errors at build time
+visudo -c -f /etc/sudoers.d/tinyos-agent || { echo "[hook:agent-user] ERROR: sudoers syntax invalid"; exit 1; }
+
+# ── Directories the agent runtime will need ───────────────────────────────────
+mkdir -p /opt/tinyos-agent/{data,models,logs,tmp}
+chmod 755 /opt/tinyos-agent
+chmod 1777 /opt/tinyos-agent/tmp
+
+echo "[hook:agent-user] Done."

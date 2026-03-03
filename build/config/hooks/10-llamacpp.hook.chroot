@@ -1,0 +1,210 @@
+#!/bin/bash
+# build/config/hooks/10-llamacpp.hook.chroot
+# ============================================================================
+# live-build chroot hook — compile llama.cpp with Vulkan backend
+#
+# This hook runs INSIDE the chroot during `lb build`.  It clones the pinned
+# llama.cpp release, compiles it with the Vulkan GPU backend, strips the
+# binaries, and installs them to /usr/local/bin/.
+#
+# After this hook the following binaries are present in the image:
+#   /usr/local/bin/llama-cli
+#   /usr/local/bin/llama-server
+#
+# GPU support at runtime (auto-detected at first use):
+#   AMD   — Mesa Vulkan driver (radv) — ships via mesa-vulkan-drivers package
+#   NVIDIA — Vulkan via nouveau or proprietary driver
+#   CPU   — automatic fallback when no Vulkan-capable GPU is present
+# ============================================================================
+
+set -euo pipefail
+
+# ── Pinned version ────────────────────────────────────────────────────────────
+# To update: change LLAMA_TAG here AND update vendor/llama.cpp/VERSION in the
+# host repository.
+
+LLAMA_TAG="b8185"
+LLAMA_REPO="https://github.com/ggml-org/llama.cpp"
+
+# ── Build settings ────────────────────────────────────────────────────────────
+
+INSTALL_PREFIX="/usr/local"
+BUILD_ROOT="/tmp/llama-build"
+JOBS="$(nproc)"
+
+echo "============================================================"
+echo " [hook:10-llamacpp] Building llama.cpp ${LLAMA_TAG}"
+echo "============================================================"
+echo "  Repo    : ${LLAMA_REPO}"
+echo "  Tag     : ${LLAMA_TAG}"
+echo "  Jobs    : ${JOBS}"
+echo "  Install : ${INSTALL_PREFIX}/bin/"
+echo "============================================================"
+
+# ── Install build-time dependencies ──────────────────────────────────────────
+# These are needed ONLY at image build time; the runtime image only needs the
+# Vulkan ICD (libvulkan1 / mesa-vulkan-drivers) which is in the package list.
+
+echo "[1/6] Installing build-time dependencies ..."
+
+export DEBIAN_FRONTEND=noninteractive
+
+apt-get update -qq
+apt-get install -y --no-install-recommends \
+    git \
+    cmake \
+    ninja-build \
+    build-essential \
+    pkg-config \
+    libvulkan-dev \
+    glslc \
+    spirv-tools
+
+echo "      Dependencies installed."
+
+# ── Clone ─────────────────────────────────────────────────────────────────────
+
+echo ""
+echo "[2/6] Cloning llama.cpp @ ${LLAMA_TAG} (shallow) ..."
+
+rm -rf "${BUILD_ROOT}"
+mkdir -p "${BUILD_ROOT}"
+
+git clone \
+    --depth 1 \
+    --branch "${LLAMA_TAG}" \
+    "${LLAMA_REPO}" \
+    "${BUILD_ROOT}/src"
+
+echo "      Clone complete: ${BUILD_ROOT}/src"
+
+# ── CMake configure ───────────────────────────────────────────────────────────
+
+echo ""
+echo "[3/6] Configuring with CMake (Vulkan + Release) ..."
+
+cmake \
+    -S "${BUILD_ROOT}/src" \
+    -B "${BUILD_ROOT}/build" \
+    -G Ninja \
+    -DGGML_VULKAN=ON \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DLLAMA_BUILD_TESTS=OFF \
+    -DLLAMA_BUILD_EXAMPLES=ON \
+    -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
+    2>&1
+
+echo "      CMake configuration complete."
+
+# ── Compile ───────────────────────────────────────────────────────────────────
+
+echo ""
+echo "[4/6] Compiling llama-cli and llama-server (${JOBS} jobs) ..."
+
+cmake \
+    --build "${BUILD_ROOT}/build" \
+    --config Release \
+    --target llama-cli llama-server \
+    --parallel "${JOBS}" \
+    2>&1
+
+echo "      Compilation complete."
+
+# Locate binaries (CMake output location varies across versions)
+find_binary() {
+    local name="$1"
+    local result
+    result="$(find "${BUILD_ROOT}/build" -type f -name "${name}" | head -1)"
+    if [[ -z "${result}" ]]; then
+        echo "ERROR: Binary '${name}' not found after build." >&2
+        echo "  Contents of build dir:" >&2
+        find "${BUILD_ROOT}/build" -maxdepth 3 -type f -executable | sort >&2
+        exit 1
+    fi
+    echo "${result}"
+}
+
+BIN_CLI="$(find_binary llama-cli)"
+BIN_SERVER="$(find_binary llama-server)"
+
+echo "      llama-cli    : ${BIN_CLI}"
+echo "      llama-server : ${BIN_SERVER}"
+
+# ── Strip binaries ────────────────────────────────────────────────────────────
+
+echo ""
+echo "[5/6] Stripping binaries ..."
+
+strip --strip-unneeded "${BIN_CLI}" "${BIN_SERVER}"
+
+echo "      llama-cli    : $(du -sh "${BIN_CLI}"    | cut -f1) (stripped)"
+echo "      llama-server : $(du -sh "${BIN_SERVER}" | cut -f1) (stripped)"
+
+# ── Install ───────────────────────────────────────────────────────────────────
+
+echo ""
+echo "[6/6] Installing to ${INSTALL_PREFIX}/bin/ ..."
+
+install -Dm 0755 "${BIN_CLI}"    "${INSTALL_PREFIX}/bin/llama-cli"
+install -Dm 0755 "${BIN_SERVER}" "${INSTALL_PREFIX}/bin/llama-server"
+
+echo "      ${INSTALL_PREFIX}/bin/llama-cli"
+echo "      ${INSTALL_PREFIX}/bin/llama-server"
+
+# ── Verify installation ───────────────────────────────────────────────────────
+
+echo ""
+echo "Verifying installed binaries ..."
+
+for bin in llama-cli llama-server; do
+    if [[ -x "${INSTALL_PREFIX}/bin/${bin}" ]]; then
+        VER="$("${INSTALL_PREFIX}/bin/${bin}" --version 2>&1 | head -1 || echo '(version unavailable)')"
+        echo "  OK: ${INSTALL_PREFIX}/bin/${bin} — ${VER}"
+    else
+        echo "ERROR: ${INSTALL_PREFIX}/bin/${bin} is not executable after install." >&2
+        exit 1
+    fi
+done
+
+# ── Remove build-time packages to keep image lean ────────────────────────────
+# Keep: git, cmake (might be useful at runtime for on-device ops)
+# Remove: heavy build-only deps (vulkan SDK headers, GLSL compiler, ninja)
+
+echo ""
+echo "Removing build-only packages to reduce image size ..."
+
+apt-get purge -y \
+    ninja-build \
+    libvulkan-dev \
+    glslc \
+    spirv-tools \
+    2>/dev/null || true
+
+apt-get autoremove -y 2>/dev/null || true
+
+# Clean apt caches and package lists again (we refreshed them above;
+# this hook runs after 0050-cleanup so we need to re-clean to stay lean)
+apt-get clean 2>/dev/null || true
+rm -rf /var/lib/apt/lists/*
+
+# ── Remove build directory ────────────────────────────────────────────────────
+
+echo "Removing build directory ${BUILD_ROOT} ..."
+rm -rf "${BUILD_ROOT}"
+
+# ── Done ──────────────────────────────────────────────────────────────────────
+
+echo ""
+echo "============================================================"
+echo " [hook:10-llamacpp] DONE"
+echo " llama.cpp ${LLAMA_TAG} installed with Vulkan backend."
+echo ""
+echo " Installed:"
+echo "   ${INSTALL_PREFIX}/bin/llama-cli"
+echo "   ${INSTALL_PREFIX}/bin/llama-server"
+echo ""
+echo " GPU detection at runtime:"
+echo "   AMD  (RDNA/GCN): Vulkan via radv (Mesa)"
+echo "   NVIDIA: Vulkan via nouveau or proprietary driver"
+echo "   No GPU: automatic CPU fallback (--gpu-layers 0 effective)"
+echo "============================================================"

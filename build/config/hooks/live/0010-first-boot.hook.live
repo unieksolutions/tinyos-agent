@@ -1,0 +1,21 @@
+#!/bin/bash
+# 0010-first-boot.hook.live — Live-boot hook: runs on each boot from the live medium
+# Configures runtime environment after live-boot has set up the overlay.
+
+set -euo pipefail
+
+echo "[live-hook:first-boot] Configuring live environment..."
+
+# Ensure GPU device nodes are accessible to the agent user
+# (udev rules handle this in production; belt-and-suspenders for live media)
+if getent group video >/dev/null 2>&1; then
+    usermod -aG video agent 2>/dev/null || true
+fi
+if getent group render >/dev/null 2>&1; then
+    usermod -aG render agent 2>/dev/null || true
+fi
+
+# Write a machine-id for this session (needed by dbus, systemd)
+systemd-machine-id-setup 2>/dev/null || true
+
+echo "[live-hook:first-boot] Done."

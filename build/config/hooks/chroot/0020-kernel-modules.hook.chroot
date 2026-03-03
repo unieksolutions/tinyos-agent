@@ -1,0 +1,48 @@
+#!/bin/bash
+# 0020-kernel-modules.hook.chroot — Ensure Vulkan/DRM kernel modules load at boot
+# Runs inside the chroot during image build.
+
+set -euo pipefail
+
+echo "[hook:kernel-modules] Configuring kernel module loading..."
+
+# ── DRM / GPU modules ─────────────────────────────────────────────────────────
+cat > /etc/modules-load.d/tinyos-gpu.conf <<'EOF'
+# TinyOS Agent — GPU / DRM kernel modules
+# Loaded at boot for broad GPU coverage.
+
+# DRM core (required by all GPU drivers)
+drm
+drm_kms_helper
+
+# AMD / ATI open-source driver (amdgpu covers GCN+ and RDNA)
+amdgpu
+
+# NVIDIA open kernel module (Turing+); falls back gracefully if not present
+# nouveau is the open fallback for older NVIDIA hardware
+nouveau
+
+# Intel graphics
+i915
+
+# virtio GPU (used in QEMU/KVM virtual machines)
+virtio_gpu
+
+# Generic framebuffer
+efifb
+vesafb
+EOF
+
+# ── Vulkan ICD configuration ──────────────────────────────────────────────────
+# mesa-vulkan-drivers ships the ICDs; just ensure the path is discoverable.
+mkdir -p /etc/vulkan/icd.d
+
+# ── Ensure amdgpu is preferred over radeon on supported hardware ──────────────
+cat > /etc/modprobe.d/tinyos-amdgpu.conf <<'EOF'
+# Prefer amdgpu over radeon for GCN+ hardware
+blacklist radeon
+options amdgpu si_support=1
+options amdgpu cik_support=1
+EOF
+
+echo "[hook:kernel-modules] Done."

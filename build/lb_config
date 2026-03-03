@@ -1,0 +1,47 @@
+#!/bin/bash
+# lb_config — TinyOS Agent live-build configuration script
+# Run this script once to initialise the live-build configuration tree.
+# After running, use 'make base-image' (or lb build) to build the ISO.
+#
+# Requirements:
+#   sudo apt-get install -y live-build qemu-system-x86 ovmf
+#
+# Usage:
+#   cd build/
+#   sudo bash lb_config
+
+set -euo pipefail
+
+echo "[lb_config] Initialising TinyOS Agent live-build configuration..."
+
+lb config \
+  --mode debian \
+  --system live \
+  --distribution bookworm \
+  --architecture amd64 \
+  --archive-areas "main contrib non-free non-free-firmware" \
+  --debian-installer none \
+  --binary-images iso-hybrid \
+  --bootloaders grub-efi \
+  --uefi-secure-boot disable \
+  --linux-flavours amd64 \
+  --linux-packages "linux-image-amd64 linux-headers-amd64" \
+  --apt-recommends false \
+  --apt-secure true \
+  --memtest none \
+  --checksums sha256 \
+  --mirror-bootstrap "https://deb.debian.org/debian" \
+  --mirror-chroot "https://deb.debian.org/debian" \
+  --mirror-chroot-security "https://security.debian.org/debian-security" \
+  --mirror-binary "https://deb.debian.org/debian" \
+  --mirror-binary-security "https://security.debian.org/debian-security" \
+  --iso-application "TinyOS Agent" \
+  --iso-preparer "TinyOS Agent Build System" \
+  --iso-publisher "TinyOS Agent" \
+  --iso-volume "TINYOS-AGENT" \
+  --bootappend-live "boot=live components quiet splash username=agent hostname=tinyos" \
+  --hostname "tinyos" \
+  --username "agent"
+
+echo "[lb_config] Configuration complete."
+echo "  Run 'lb build' or 'make base-image' to build the ISO image."

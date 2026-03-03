@@ -1,10 +1,10 @@
 # TinyOS Agent — STATUS
 
-## Current State: Phase 1 Complete (Base Image)
+## Current State: Phase 2 In Progress (Agent TUI)
 
 **Last updated:** 2026-03-03
 **Current version:** v0.1.0
-**Active ticket:** T000010 (complete), next: Phase 2 Agent TUI
+**Active ticket:** Phase 2 — Agent TUI (core complete, 25 tests passing)
 
 ## What Works
 
@@ -19,9 +19,19 @@
 - [x] QEMU boot test targets (interactive + headless CI)
 - [x] Makefile with full build pipeline
 
+## What Works (Phase 2)
+
+- [x] Hardware detection: GPU (vendor/model/VRAM/driver), CPU, RAM, disks
+- [x] Curses TUI: boot splash, hardware summary, greeting screen
+- [x] User identity: SQLite DB, create/lookup users, case-insensitive
+- [x] Password auth: bcrypt (preferred) or SHA-256 fallback
+- [x] Main menu: hardware info, settings, placeholder for network/mesh
+- [x] Systemd service file for auto-start on tty1
+- [x] live-build chroot hook for agent installation
+- [x] 25 Python tests (hardware + identity), all passing
+
 ## What's Next
 
-- [ ] **Phase 2: Agent TUI** — Python interactive agent (introduce, ask name, auth)
 - [ ] **Phase 3: Network Scanner** — WiFi, Bluetooth, mDNS device discovery
 - [ ] **Phase 4: Mesh Sharing** — Resource advertisement and job routing (sharemesh.org)
 

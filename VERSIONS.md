@@ -1,85 +1,66 @@
-# TinyOS Agent — Version History
+<!--
+ts: 2026-03-04T10:00:00Z | git: a8ee2e2 | path: /opt/projects/tinyos-agent
+-->
 
-## v0.1.0 — 2026-03-03
+# VERSIONS
 
-**Ticket:** T000010 — Configure Debian live-build environment and base OS image
-**Stage:** Initial configuration (developer → tester → reviewer → deployer pipeline)
+Multi-environment version tracking for TinyOS Agent.
 
-### Deployed Configuration
+**Source of Truth:** `/opt/projects/tinyos-agent`
 
-| Property | Value |
-|----------|-------|
-| Base OS | Debian bookworm (stable) |
-| Architecture | x86_64 (amd64) |
-| Desktop | None (headless) |
-| Kernel | `linux-image-amd64` + `linux-headers-amd64` |
-| Boot | UEFI (GRUB2) + BIOS fallback |
-| Auto-login | `agent` user on tty1 (agetty) |
-| Timezone | UTC |
-| Locale | `en_US.UTF-8` |
-| ISO type | iso-hybrid (USB bootable) |
+## Environments
 
-### Deliverables
+### Development (Build Host — SPI Server)
+- **Location:** `/opt/projects/tinyos-agent`
+- **Git Branch:** main
+- **Git Commit:** a8ee2e2
+- **Last Updated:** 2026-03-04
+- **Status:** Active development (Phase 2 complete, Phase 3 in progress)
+- **Access:** Direct filesystem (SPI LAN: 192.168.42.21, Tailscale: 100.123.174.47)
+- **Build host OS:** Ubuntu (live-build 3.0~a57-1)
+- **No running service** — TinyOS Agent runs on target hardware from USB, not on SPI
 
-- `build/lb_config` — `lb config` initialisation script (HTTPS mirrors, bookworm)
-- `build/config/package-lists/tinyos.list.chroot` — 80+ packages (Python, Vulkan, firmware)
-- `build/config/hooks/chroot/0010-locale.hook.chroot` — locale/keyboard/timezone
-- `build/config/hooks/chroot/0020-kernel-modules.hook.chroot` — GPU/DRM kernel modules
-- `build/config/hooks/chroot/0030-agent-user.hook.chroot` — agent user + scoped sudoers
-- `build/config/hooks/chroot/0040-autologin.hook.chroot` — agetty autologin on tty1
-- `build/config/hooks/chroot/0050-cleanup.hook.chroot` — apt cache + doc cleanup
-- `build/config/hooks/live/0010-first-boot.hook.live` — first-boot service setup
-- `Makefile` — `deps`, `base-image`, `test-boot`, `test-boot-headless`, `clean`, `info`
-- `tests/test_config.sh` — 78-test static analysis suite (0 failures)
-- `README.md` — build and usage documentation
+### Target (USB Boot — Any x86_64 Machine)
+- **Delivery:** Bootable ISO (`tinyos-agent.iso`) flashed to USB
+- **ISO Status:** Not yet built (see BACKLOG ISO-001)
+- **Base:** Debian bookworm (live image, amd64)
+- **Boot:** UEFI via GRUB
 
-### Changes Applied in Deployment
+## Component Versions
 
-| Issue | Fix Applied |
-|-------|-------------|
-| Hardcoded OVMF path `/usr/share/ovmf/OVMF.fd` | Auto-detection via `OVMF_FW=$(firstword $(wildcard ...))` across 5 candidate paths |
-| Dead `QEMU_DISK_SIZE` Makefile variable | Removed; QEMU boot tests are CD-ROM only (no emulated disk needed) |
-| HTTP mirrors in `lb_config` | Upgraded all 5 mirror URLs to `https://` |
-| Bare `NOPASSWD: ALL` sudoers | Scoped to `Cmnd_Alias TINYOS_CMDS` for required commands only |
-| Missing in-repo test suite | Added `tests/test_config.sh` — 78 static tests, 9 groups |
+| Component | Version | Source | Notes |
+|-----------|---------|--------|-------|
+| TinyOS Agent | 0.2.0 | `agent/__init__.py` | Python package version |
+| llama.cpp | b8185 | `vendor/llama.cpp/VERSION` | Pinned tag, built with Vulkan |
+| Debian base | bookworm | live-build config | Stable release |
+| Python | 3.x (system) | Debian package | Exact version depends on bookworm |
+| SQLite | system | Debian package | User identity database |
 
-### Test Results (Deployment Validation)
+## Build Host Dependencies
 
-```
-Results: 78 passed, 0 failed, 2 skipped
-STATUS: PASS
+| Tool | Version | Purpose |
+|------|---------|---------|
+| live-build | 3.0~a57-1 | ISO builder |
+| QEMU | 8.2.2 | Boot testing |
+| OVMF | system | UEFI firmware for QEMU |
+| KVM | available | Hardware acceleration |
 
-Skipped (require root/install):
-  - live-build not installed (requires: sudo apt-get install live-build)
-  - debootstrap not installed (requires: sudo apt-get install debootstrap)
+## ISO Package Summary
 
-Infrastructure confirmed present:
-  - qemu-system-x86_64: QEMU 8.2.2 (Debian 1:8.2.2+ds-0ubuntu1.12)
-  - /dev/kvm: present (KVM hardware acceleration available)
-  - OVMF firmware: /usr/share/ovmf/OVMF.fd
-```
+Key packages included in the live image (see `build/config/package-lists/tinyos.list.chroot` for full list):
 
-### Remaining Work
+| Category | Packages |
+|----------|----------|
+| GPU/Vulkan | libvulkan1, vulkan-tools, mesa-vulkan-drivers, mesa-utils |
+| Firmware | firmware-linux, firmware-amd-graphics, firmware-nvidia-graphics, firmware-iwlwifi |
+| Python | python3, python3-pip, python3-venv, python3-requests, python3-yaml |
+| Network | iproute2, openssh-server, avahi-daemon, nftables |
+| Build tools | git, make, gcc, cmake (for on-device llama.cpp rebuilds) |
+| Storage | parted, lvm2, cryptsetup, squashfs-tools |
 
-- **QEMU boot verification** (`make test-boot-headless`): Blocked on installing
-  `live-build` + `debootstrap` (requires passwordless `sudo` or root access on
-  build host). Run the following on a host with root access:
+## Version History
 
-  ```bash
-  sudo apt-get install -y live-build debootstrap qemu-system-x86 ovmf
-  cd /opt/projects/tinyos-agent
-  make base-image
-  make test-boot-headless
-  ```
-
-### Backup Location
-
-`/opt/backups/tinyos-agent_2026-03-03T10-45-43/`
-
----
-
-## Planned Future Versions
-
-- **v0.2.0** — Agent runtime installation (Python packages, systemd services)
-- **v0.3.0** — GPU compute stack (ROCm / CUDA / Vulkan compute)
-- **v1.0.0** — First bootable, verified USB image with full TinyOS Agent stack
+| Version | Date | Commit | Notes |
+|---------|------|--------|-------|
+| 0.2.0 | 2026-03-03 | a8ee2e2 | Phase 2: Agent TUI, hardware detect, identity, lb_config fix |
+| 0.1.0 | 2026-03-03 | 02474cf | Initial commit: project setup, live-build config, Makefile |

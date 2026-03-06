@@ -1,0 +1,41 @@
+#!/bin/bash
+# 0055-fix-grub-mkimage.hook.chroot — Patch grub-mkimage for live-build 3.0 compat
+# live-build 3.0's binary.sh calls grub-mkimage WITHOUT -p (prefix), which
+# GRUB 2.12+ requires. This hook wraps grub-mkimage to inject -p /boot/grub
+# when it's missing.
+
+set -euo pipefail
+
+echo "[hook:fix-grub-mkimage] Installing grub-mkimage wrapper for lb 3.0 compatibility..."
+
+REAL_BIN="$(which grub-mkimage 2>/dev/null || echo /usr/bin/grub-mkimage)"
+
+if [ ! -f "${REAL_BIN}" ]; then
+    echo "[hook:fix-grub-mkimage] SKIP: grub-mkimage not found"
+    exit 0
+fi
+
+# Rename the real binary
+mv "${REAL_BIN}" "${REAL_BIN}.real"
+
+# Create wrapper that injects -p /boot/grub if missing
+cat > "${REAL_BIN}" << 'WRAPPER'
+#!/bin/bash
+# Wrapper: inject -p /boot/grub if not specified (live-build 3.0 compat)
+ARGS=("$@")
+HAS_PREFIX=false
+for arg in "${ARGS[@]}"; do
+    if [ "$arg" = "-p" ] || [[ "$arg" == --prefix* ]]; then
+        HAS_PREFIX=true
+        break
+    fi
+done
+if [ "$HAS_PREFIX" = "false" ]; then
+    exec "$(dirname "$0")/grub-mkimage.real" -p /boot/grub "${ARGS[@]}"
+else
+    exec "$(dirname "$0")/grub-mkimage.real" "${ARGS[@]}"
+fi
+WRAPPER
+chmod +x "${REAL_BIN}"
+
+echo "[hook:fix-grub-mkimage] Done. grub-mkimage wrapped to add -p /boot/grub"

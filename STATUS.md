@@ -1,10 +1,10 @@
 <!--
-ts: 2026-03-04T10:00:00Z | git: a8ee2e2 | path: /opt/projects/tinyos-agent
+ts: 2026-03-06T18:00:00Z | git: pending | path: /opt/projects/tinyos-agent
 -->
 
 # STATUS
 
-**Project:** TinyOS Agent | **Version:** 0.2.0 | **Updated:** 2026-03-04
+**Project:** TinyOS Agent | **Version:** 0.3.0 | **Updated:** 2026-03-06
 
 ## Overall Progress
 
@@ -12,7 +12,7 @@ ts: 2026-03-04T10:00:00Z | git: a8ee2e2 | path: /opt/projects/tinyos-agent
 |-------|-------------|--------|
 | 1. Project Setup | Repo, Makefile, live-build config, package lists | ✅ Complete |
 | 2. Agent TUI Core | Hardware detection, identity/auth, curses UI | ✅ Complete |
-| 3. ISO Build Pipeline | End-to-end ISO generation and QEMU boot test | 🟡 Partially done |
+| 3. ISO Build Pipeline | End-to-end ISO generation and QEMU boot test | 🟡 Nearly done (build #9 in progress) |
 | 4. ShareMesh Architecture | Mesh networking, resource discovery, model sharing | ❌ Not started |
 | 5. Multi-Architecture | ARM64, RISC-V support | ❌ Not started |
 
@@ -28,61 +28,61 @@ ts: 2026-03-04T10:00:00Z | git: a8ee2e2 | path: /opt/projects/tinyos-agent
 
 ### Build System
 - ✅ Makefile with targets: deps, base-image, test-boot, test-boot-headless, clean
-- ✅ live-build configuration: Debian bookworm, amd64, UEFI (grub), non-free firmware
-- ✅ Package list: 80+ packages including Vulkan, firmware, Python, build tools
-- ✅ Chroot hooks: locale, kernel modules, agent user, autologin, cleanup, agent install
-- ✅ llama.cpp Vulkan build hook (compiles from source at tag b8185 during image build)
-- ✅ QEMU available with KVM and OVMF firmware
-- ✅ **76/80 config tests pass** (4 known mismatches between test expectations and lb_config format)
+- ✅ live-build configuration: **Debian 13 Trixie**, amd64, GRUB 2, non-free firmware
+- ✅ Package list: 88 packages including Vulkan 1.4.309, firmware, Python, build tools
+- ✅ 8 chroot hooks: locale, kernel-modules, agent-user, autologin, llamacpp, fix-grub, install-agent, cleanup
+- ✅ llama.cpp Vulkan build hook — **compiles successfully** from source (tag b8185) in Trixie chroot
+- ✅ Agent install hook — systemd service installed and enabled
+- ✅ QEMU available with KVM (user added to kvm group)
+- ✅ **87/87 config tests pass**, **25/25 Python tests pass**
+
+### ISO Build (Build #8 — 2026-03-06)
+- ✅ ISO generated: 615MB (`tinyos-agent.iso`)
+- ✅ All 8 chroot hooks execute successfully
+- ✅ llama.cpp b8185 compiles with Vulkan backend inside chroot
+- ✅ QEMU boots ISO, shows GRUB menu, autologin to `agent@tinyos` shell
+- ✅ Agent files present at `/opt/tinyos-agent/agent/` on booted image
+- ✅ systemd service installed (`tinyos-agent.service`)
+- 🟡 GRUB boot image needs `-p /boot/grub` fix (build #9 in progress)
 
 ### Scripts
 - ✅ `build-llamacpp.sh` — Standalone llama.cpp Vulkan build from pinned tag
 - ✅ `sync-agent.sh` — Copy agent code into live-build includes.chroot
 - ✅ `test-gpu-detect.sh` — Verify Vulkan GPU detection with tiny GGUF model
 
-## What's NOT Working
+## ISO Build Attempt History
 
-### ISO Build
-- ❌ No ISO has been successfully built end-to-end yet
-- ❌ `lb_config` was adapted for live-build 3.0 (Ubuntu) but not fully validated
-- ❌ 4 config test failures:
-  - `--bootloaders grub-efi` — lb_config uses `--bootloader grub` (lb 3.0 syntax)
-  - `--linux-packages linux-image-amd64` — lb_config uses `linux-image linux-headers`
-  - Possible hardcoded password false positive in build dir
-  - Cleanup hook ordering: `0060-install-agent` runs after `0050-cleanup`
+| # | Date | Error | Fix | Result |
+|---|------|-------|-----|--------|
+| 1 | Mar 4 | Security repo 404 (`bookworm/updates`) | `LB_SECURITY="false"` | Fixed |
+| 2 | Mar 4 | `Contents-amd64.gz` 404 | `LB_FIRMWARE_CHROOT="false"` | Fixed |
+| 3 | Mar 5 | `firmware-nvidia-graphics` not found | Removed (firmware-misc-nonfree covers it) | Fixed |
+| 4 | Mar 5 | `nouveau-firmware` not found (stale cache) | `lb clean --purge` | Fixed |
+| 5 | Mar 5 | Hooks not executing (wrong directory) | Moved hooks from `config/hooks/chroot/` → `config/hooks/` | Fixed |
+| 6 | Mar 5 | `visudo: command not found` in chroot | Graceful skip + added `sudo` to package list | Fixed |
+| 7 | Mar 6 | Vulkan 1.3.239 too old for llama.cpp b8185 | **Upgraded bookworm → trixie** (Vulkan 1.4.309) | Fixed |
+| 8 | Mar 6 | `grub-mkimage` missing `-p /boot/grub` | `grub2` bootloader + grub-mkimage wrapper hook | Fixed |
+| 9 | Mar 6 | **Building now...** | All fixes combined | Pending |
 
-### Agent Placeholders
-- ❌ "Network Scan" menu item — shows "Coming soon"
-- ❌ "Mesh Status" menu item — shows "Coming soon"
+## Key Learnings (live-build 3.0 on Ubuntu)
 
-### ShareMesh
-- ❌ No architecture designed yet
-- ❌ No network discovery (mDNS/avahi is in package list but not used)
-- ❌ No llama.cpp server mode integration
-- ❌ No resource advertisement/negotiation protocol
-
-## Known Issues
-
-1. **Hook ordering:** `0060-install-agent.hook.chroot` runs AFTER `0050-cleanup.hook.chroot`, which means cleanup runs before agent install. The llama.cpp hook (`10-llamacpp.hook.chroot`) is in `config/hooks/` not `config/hooks/chroot/` — may not execute in correct order.
-2. **Test expectations mismatch:** `test_config.sh` expects `--bootloaders grub-efi` and `--linux-packages linux-image-amd64` but `lb_config` was updated for live-build 3.0 syntax which uses different flag names.
-3. **live-build version:** SPI build host runs live-build 3.0~a57-1 (Ubuntu), which has different CLI flags than Debian's live-build. Configuration adapted but untested.
+1. **Hooks go in `config/hooks/*.chroot`** (flat), NOT `config/hooks/chroot/` (subdirs are for newer lb)
+2. **`--security false`** flag is ignored by lb 3.0 — must edit `config/chroot` directly
+3. **`LB_FIRMWARE_CHROOT`** auto-detection downloads `Contents-amd64.gz` which doesn't exist in modern repos
+4. **`--bootloader grub`** = GRUB Legacy (stage2_eltorito), **`--bootloader grub2`** = GRUB 2
+5. **GRUB 2.12+ requires `-p /boot/grub`** in grub-mkimage — lb 3.0 doesn't pass it
+6. **Debian bookworm (2023) is too old** for modern LLM tooling — Vulkan 1.3.239 vs llama.cpp needing 1.3.275+
+7. **Always check dependency versions** before choosing a base OS — would have saved 3+ build attempts
+8. **`lb clean` without `--purge`** keeps stale chroot state — use `--purge` when config changes
 
 ## Dependencies
 
 | Component | Version | Source |
 |-----------|---------|--------|
-| Debian base | bookworm | live-build ISO |
+| Debian base | **trixie (13)** | live-build ISO |
 | Python | 3.x (system) | Debian package |
 | llama.cpp | b8185 | Built from source (Vulkan) |
+| Vulkan SDK | **1.4.309** | Debian trixie |
+| Kernel | **6.12.63** | Debian trixie |
 | live-build | 3.0~a57-1 | Build host (Ubuntu) |
 | QEMU | 8.2.2 | Build host |
-| OVMF | system | UEFI firmware for QEMU |
-
-## Git History
-
-```
-a8ee2e2 Fix lb_config for live-build 3.0 (Ubuntu compatibility)
-fb383a6 Update STATUS.md: Phase 2 agent TUI core complete
-27f1efc Add Phase 2 Agent TUI: hardware detect, identity, curses UI
-02474cf Initial commit: TinyOS Agent v0.1.0 + SPI bootstrap docs
-```

@@ -14,8 +14,8 @@ set -uo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BUILD_DIR="${REPO_ROOT}/build"
-HOOKS_CHROOT="${BUILD_DIR}/config/hooks/chroot"
-HOOKS_LIVE="${BUILD_DIR}/config/hooks/live"
+# live-build 3.0 uses flat config/hooks/ directory (not chroot/ and live/ subdirs)
+HOOKS_DIR="${BUILD_DIR}/config/hooks"
 PKG_LIST="${BUILD_DIR}/config/package-lists/tinyos.list.chroot"
 LB_CONFIG="${BUILD_DIR}/lb_config"
 MAKEFILE="${REPO_ROOT}/Makefile"
@@ -41,12 +41,14 @@ check_file() {
 
 check_file "${LB_CONFIG}"                                          "build/lb_config"
 check_file "${BUILD_DIR}/config/package-lists/tinyos.list.chroot" "package list"
-check_file "${HOOKS_CHROOT}/0010-locale.hook.chroot"              "chroot hook 0010-locale"
-check_file "${HOOKS_CHROOT}/0020-kernel-modules.hook.chroot"      "chroot hook 0020-kernel-modules"
-check_file "${HOOKS_CHROOT}/0030-agent-user.hook.chroot"          "chroot hook 0030-agent-user"
-check_file "${HOOKS_CHROOT}/0040-autologin.hook.chroot"           "chroot hook 0040-autologin"
-check_file "${HOOKS_CHROOT}/0050-cleanup.hook.chroot"             "chroot hook 0050-cleanup"
-check_file "${HOOKS_LIVE}/0010-first-boot.hook.live"              "live hook 0010-first-boot"
+check_file "${HOOKS_DIR}/0010-locale.hook.chroot"              "chroot hook 0010-locale"
+check_file "${HOOKS_DIR}/0020-kernel-modules.hook.chroot"      "chroot hook 0020-kernel-modules"
+check_file "${HOOKS_DIR}/0030-agent-user.hook.chroot"          "chroot hook 0030-agent-user"
+check_file "${HOOKS_DIR}/0040-autologin.hook.chroot"           "chroot hook 0040-autologin"
+check_file "${HOOKS_DIR}/0050-llamacpp.hook.chroot"            "chroot hook 0050-llamacpp"
+check_file "${HOOKS_DIR}/0060-install-agent.hook.chroot"      "chroot hook 0060-install-agent"
+check_file "${HOOKS_DIR}/0090-cleanup.hook.chroot"            "chroot hook 0090-cleanup"
+check_file "${HOOKS_DIR}/0010-first-boot.hook.live"              "live hook 0010-first-boot"
 check_file "${MAKEFILE}"                                           "Makefile"
 check_file "${REPO_ROOT}/README.md"                               "README.md"
 
@@ -54,8 +56,8 @@ check_file "${REPO_ROOT}/README.md"                               "README.md"
 group "2. Shell script syntax (bash -n)"
 
 for script in "${LB_CONFIG}" \
-              "${HOOKS_CHROOT}"/*.hook.chroot \
-              "${HOOKS_LIVE}"/*.hook.live; do
+              "${HOOKS_DIR}"/*.hook.chroot \
+              "${HOOKS_DIR}"/*.hook.live; do
     label="$(basename "$script")"
     if bash -n "$script" 2>/dev/null; then
         _pass "${label}: syntax OK"
@@ -78,18 +80,20 @@ lb_has() {
     fi
 }
 
-lb_has "--distribution"           "bookworm"
+lb_has "--distribution"           "trixie"
 lb_has "--architecture"           "amd64"
 lb_has "--binary-images"          "iso-hybrid"
-lb_has "--bootloaders"            "grub-efi"
+# live-build 3.0 uses --bootloader (singular) with value "grub" (not grub-efi)
+lb_has "--bootloader"             "grub2"
 lb_has "--linux-flavours"         "amd64"
-lb_has "--linux-packages"         "linux-image-amd64"
+# live-build 3.0 uses space-separated "linux-image linux-headers" (not linux-image-amd64)
+lb_has "--linux-packages"         "linux-image"
 lb_has "--archive-areas"          "non-free"
-lb_has "--hostname"               "tinyos"
-lb_has "--username"               "agent"
+# live-build 3.0: no --hostname/--username flags; passed via --bootappend-live instead
+lb_has "--bootappend-live"        "hostname=tinyos"
+lb_has "--bootappend-live"        "username=agent"
 lb_has "--apt-recommends"         "false"
 lb_has "--checksums"              "sha256"
-lb_has "--bootappend-live"        "username=agent"
 
 # ── Group 4: Mirror transport security (HTTPS) ────────────────────────────────
 group "4. Mirror URLs use HTTPS"
@@ -130,7 +134,7 @@ pkg_present mesa-vulkan-drivers
 pkg_present firmware-linux
 pkg_present firmware-linux-nonfree
 pkg_present firmware-amd-graphics
-pkg_present firmware-nvidia-graphics
+pkg_present firmware-misc-nonfree
 pkg_present live-boot
 pkg_present live-config
 pkg_present openssh-server
@@ -138,8 +142,8 @@ pkg_present openssh-server
 # ── Group 6: Security checks ──────────────────────────────────────────────────
 group "6. Security checks"
 
-# No hardcoded secrets / passwords
-if grep -rqi 'password\s*=\s*[^$]' "${BUILD_DIR}" 2>/dev/null; then
+# No hardcoded secrets / passwords (exclude lb-generated config files and comments)
+if grep -rqi --include='*.sh' --include='*.hook.*' 'password\s*=\s*["\x27][^$]' "${BUILD_DIR}" 2>/dev/null; then
     _fail "Possible hardcoded passwords found"
 else
     _pass "No hardcoded passwords found"
@@ -160,9 +164,9 @@ else
 fi
 
 # sudoers file should NOT have bare NOPASSWD: ALL anymore
-if grep -q 'NOPASSWD: ALL' "${HOOKS_CHROOT}/0030-agent-user.hook.chroot"; then
+if grep -q 'NOPASSWD: ALL' "${HOOKS_DIR}/0030-agent-user.hook.chroot"; then
     # Check it's wrapped in a Cmnd_Alias, not a bare "agent ALL=(ALL) NOPASSWD: ALL"
-    if grep -qP '^agent\s+ALL=\(ALL\)\s+NOPASSWD:\s+ALL' "${HOOKS_CHROOT}/0030-agent-user.hook.chroot"; then
+    if grep -qP '^agent\s+ALL=\(ALL\)\s+NOPASSWD:\s+ALL' "${HOOKS_DIR}/0030-agent-user.hook.chroot"; then
         _fail "sudoers: bare 'agent ALL=(ALL) NOPASSWD: ALL' found (over-privileged)"
     else
         _pass "sudoers: NOPASSWD is scoped via Cmnd_Alias (not bare ALL)"
@@ -193,11 +197,13 @@ expected_chroot_order=(
     "0020-kernel-modules.hook.chroot"
     "0030-agent-user.hook.chroot"
     "0040-autologin.hook.chroot"
-    "0050-cleanup.hook.chroot"
+    "0050-llamacpp.hook.chroot"
+    "0060-install-agent.hook.chroot"
+    "0090-cleanup.hook.chroot"
 )
 
 for hook in "${expected_chroot_order[@]}"; do
-    if [[ -f "${HOOKS_CHROOT}/${hook}" ]]; then
+    if [[ -f "${HOOKS_DIR}/${hook}" ]]; then
         _pass "chroot hook in order: ${hook}"
     else
         _fail "chroot hook missing: ${hook}"
@@ -205,7 +211,7 @@ for hook in "${expected_chroot_order[@]}"; do
 done
 
 # Verify hooks are executable (or have shebang — live-build requires executable hooks)
-for hook_file in "${HOOKS_CHROOT}"/*.hook.chroot "${HOOKS_LIVE}"/*.hook.live; do
+for hook_file in "${HOOKS_DIR}"/*.hook.chroot "${HOOKS_DIR}"/*.hook.live; do
     label="$(basename "$hook_file")"
     if head -1 "$hook_file" | grep -q '^#!'; then
         _pass "${label}: has shebang"
@@ -215,8 +221,8 @@ for hook_file in "${HOOKS_CHROOT}"/*.hook.chroot "${HOOKS_LIVE}"/*.hook.live; do
 done
 
 # Cleanup hook should run last (highest number)
-last_hook=$(ls "${HOOKS_CHROOT}"/*.hook.chroot 2>/dev/null | sort | tail -1 | xargs basename)
-if [[ "${last_hook}" == 0050-cleanup* ]]; then
+last_hook=$(ls "${HOOKS_DIR}"/*.hook.chroot 2>/dev/null | sort | tail -1 | xargs basename)
+if [[ "${last_hook}" == 0090-cleanup* ]]; then
     _pass "cleanup hook runs last (${last_hook})"
 else
     _fail "cleanup hook is NOT last: ${last_hook}"

@@ -13,6 +13,7 @@ kmod
 lsb-base
 
 # ── Shell & essential tools ────────────────────────────────────────────────────
+sudo
 bash
 coreutils
 grep
@@ -86,8 +87,12 @@ firmware-linux-nonfree
 firmware-linux-free
 firmware-amd-graphics
 
-# ── Firmware — NVIDIA GPU ──────────────────────────────────────────────────────
-firmware-nvidia-graphics
+# ── Firmware — GPU (vendor-agnostic via Vulkan) ───────────────────────────────
+# No vendor-specific GPU firmware needed: Vulkan abstracts GPU access.
+# - AMD: firmware in firmware-amd-graphics (above) + mesa RADV driver
+# - NVIDIA: firmware in firmware-misc-nonfree (below) + nouveau driver
+# - Intel: firmware in firmware-linux (above) + mesa ANV driver
+# - CPU fallback: lavapipe (software Vulkan, in mesa-vulkan-drivers)
 
 # ── Firmware — broad peripheral coverage ──────────────────────────────────────
 firmware-atheros

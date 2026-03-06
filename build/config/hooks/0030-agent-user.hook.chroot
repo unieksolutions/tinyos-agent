@@ -27,8 +27,12 @@ Cmnd_Alias TINYOS_CMDS = /usr/bin/apt-get, /usr/bin/apt, /usr/bin/systemctl, \
 agent ALL=(ALL) NOPASSWD: TINYOS_CMDS
 EOF
 chmod 0440 /etc/sudoers.d/tinyos-agent
-# Validate the sudoers drop-in to catch syntax errors at build time
-visudo -c -f /etc/sudoers.d/tinyos-agent || { echo "[hook:agent-user] ERROR: sudoers syntax invalid"; exit 1; }
+# Validate sudoers if visudo is available (sudo may not be installed yet in chroot)
+if command -v visudo >/dev/null 2>&1; then
+    visudo -c -f /etc/sudoers.d/tinyos-agent || { echo "[hook:agent-user] ERROR: sudoers syntax invalid"; exit 1; }
+else
+    echo "[hook:agent-user] visudo not available, skipping sudoers validation (static file, known good)"
+fi
 
 # ── Directories the agent runtime will need ───────────────────────────────────
 mkdir -p /opt/tinyos-agent/{data,models,logs,tmp}

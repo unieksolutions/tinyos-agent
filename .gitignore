@@ -32,3 +32,9 @@ venv/
 
 # macOS
 .DS_Store
+build/.lock
+build/chroot*
+build/wget-log*
+build/*.iso
+build/*.sha256
+build/build.log

@@ -1,5 +1,5 @@
 <!--
-ts: 2026-03-04T10:00:00Z | git: a8ee2e2 | path: /opt/projects/tinyos-agent
+ts: 2026-03-06T18:00:00Z | git: pending | path: /opt/projects/tinyos-agent
 -->
 
 # BACKLOG
@@ -19,20 +19,18 @@ Work items and priorities for TinyOS Agent.
 
 ### P0 — Critical (blocking progress)
 
-- [ ] **ISO-001** — Fix live-build ISO end-to-end build
-  - Fix hook ordering: 0060-install-agent runs after 0050-cleanup
-  - Fix or move 10-llamacpp.hook.chroot into correct hooks/chroot/ directory
-  - Align test_config.sh expectations with lb_config lb 3.0 syntax
-  - Run `make base-image` and verify ISO boots in QEMU
-  - **Estimate:** 2-4 hours
-
-- [ ] **ISO-002** — Verify QEMU boot + agent TUI launches
-  - Boot ISO with `make test-boot`
-  - Confirm autologin → agent TUI splash → hardware detect → greeting
-  - Test identity flow (new user, returning user, password)
-  - **Depends on:** ISO-001
+- [ ] **ISO-003** — Verify GRUB 2 boot + agent TUI auto-launch
+  - Build #9 is running with grub-mkimage `-p /boot/grub` wrapper fix
+  - Boot ISO in QEMU, verify: GRUB menu → kernel boot → autologin → agent TUI
+  - If TUI doesn't auto-launch, check systemd service status
+  - **Estimate:** 1-2 hours (mostly build wait time)
 
 ### P1 — High Priority (next milestones)
+
+- [ ] **ISO-004** — Add serial console support for headless testing
+  - Add `console=ttyS0,115200` to GRUB boot params for serial output
+  - Enables automated QEMU boot verification without VNC
+  - **Estimate:** 1 hour
 
 - [ ] **MESH-001** — Design ShareMesh architecture
   - Define mesh discovery protocol (mDNS/avahi, custom UDP broadcast, or both)
@@ -44,7 +42,7 @@ Work items and priorities for TinyOS Agent.
 
 - [ ] **MESH-002** — Network discovery proof-of-concept
   - Use avahi (already in package list) for mDNS service advertisement
-  - Each TinyOS node advertises: `_sharemesh._tcp` service with TXT records (GPU, VRAM, hostname)
+  - Each TinyOS node advertises: `_sharemesh._tcp` service with TXT records
   - Agent discovers nearby nodes and shows them in "Network Scan" menu
   - **Depends on:** MESH-001
   - **Estimate:** 4-6 hours
@@ -59,54 +57,37 @@ Work items and priorities for TinyOS Agent.
 ### P2 — Medium Priority
 
 - [ ] **AGENT-001** — Implement "Network Scan" menu (replace placeholder)
-  - Scan local network for other TinyOS/ShareMesh nodes
-  - Show: hostname, IP, GPU type, VRAM, status
   - **Depends on:** MESH-002
 
 - [ ] **AGENT-002** — Implement "Mesh Status" menu (replace placeholder)
-  - Show: connected nodes, active model, VRAM usage, inference throughput
   - **Depends on:** MESH-003
 
 - [ ] **AGENT-003** — Add "Chat" menu item
   - Local or remote inference via llama-cli/llama-server
   - Simple text chat interface in curses TUI
-  - Auto-select best available model/node
 
-- [ ] **BUILD-001** — Fix 4 failing config tests
-  - Update test_config.sh to match lb 3.0 syntax (--bootloader vs --bootloaders)
-  - Fix or acknowledge linux-packages format difference
-  - Investigate "hardcoded password" false positive
-  - Rename 0060 hook or renumber cleanup to 0099
+- [ ] **BUILD-002** — Add UEFI boot support to ISO
+  - Current ISO is BIOS-only (GRUB 2 i386-pc)
+  - Need EFI System Partition with grub-efi-amd64 for modern hardware
+  - May need xorriso instead of genisoimage for dual BIOS+UEFI
 
 ### P3 — Low Priority / Future
 
 - [ ] **ARCH-001** — ARM64 support (Raspberry Pi 4/5, Jetson)
-  - Research: live-build for ARM64, or switch to custom rootfs builder
-  - Vulkan on ARM: Mali/Panfrost vs NVIDIA Jetson
-  - Cross-compilation of llama.cpp for aarch64
-
 - [ ] **ARCH-002** — RISC-V support
-  - Experimental, depends on Vulkan driver availability
-
 - [ ] **AGENT-004** — Web UI alongside TUI
-  - Flask/FastAPI dashboard accessible via browser
-  - Same functionality as TUI but for remote management
-
-- [ ] **MESH-004** — Model management
-  - Download/cache GGUF models on nodes
-  - Advertise available models in mesh
-  - Auto-distribute models to best-fit nodes based on VRAM
-
-- [ ] **MESH-005** — Security layer
-  - Node authentication (shared key, TLS certificates)
-  - Encrypt mesh traffic
-  - Access control for model serving
+- [ ] **MESH-004** — Model management (download, cache, distribute GGUF models)
+- [ ] **MESH-005** — Security layer (node auth, TLS, access control)
 
 ## Completed
 
 - [x] **INIT-001** — Project setup: repo, Makefile, live-build config, package lists
 - [x] **AGENT-TUI** — Phase 2 Agent TUI: curses splash, hardware detect, identity/auth, main menu
-- [x] **BUILD-LLAMA** — llama.cpp Vulkan build hook (chroot hook, standalone script)
+- [x] **BUILD-LLAMA** — llama.cpp Vulkan build hook (compiles b8185 in trixie chroot)
 - [x] **TEST-001** — 25 Python unit tests for hardware + identity modules
-- [x] **TEST-002** — 82-point config validation test suite (test_config.sh)
+- [x] **TEST-002** — 87-point config validation test suite (test_config.sh)
 - [x] **LB-FIX** — Fix lb_config for live-build 3.0 (Ubuntu host compatibility)
+- [x] **ISO-001** — Fix hook ordering (cleanup last), move hooks to flat `config/hooks/`
+- [x] **ISO-002** — Fix lb 3.0 incompatibilities (security repo, firmware auto-detect, package names)
+- [x] **BUILD-001** — Fix all config tests for lb 3.0 syntax (87/87 pass)
+- [x] **DISTRO-001** — Upgrade base OS from Debian 12 bookworm → Debian 13 trixie (Vulkan 1.4.309)

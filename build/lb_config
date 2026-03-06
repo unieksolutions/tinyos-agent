@@ -24,12 +24,12 @@ echo "[lb_config] live-build version: ${LB_VERSION}"
 lb config \
   --mode debian \
   --system live \
-  --distribution bookworm \
+  --distribution trixie \
   --architecture amd64 \
   --archive-areas "main contrib non-free non-free-firmware" \
   --debian-installer false \
   --binary-images iso-hybrid \
-  --bootloader grub \
+  --bootloader grub2 \
   --linux-flavours amd64 \
   --linux-packages "linux-image linux-headers" \
   --apt-recommends false \
@@ -37,11 +37,10 @@ lb config \
   --memtest none \
   --checksums sha256 \
   --initsystem systemd \
+  --security false \
   --mirror-bootstrap "https://deb.debian.org/debian" \
   --mirror-chroot "https://deb.debian.org/debian" \
-  --mirror-chroot-security "https://security.debian.org/debian-security" \
   --mirror-binary "https://deb.debian.org/debian" \
-  --mirror-binary-security "https://security.debian.org/debian-security" \
   --iso-application "TinyOS Agent" \
   --iso-preparer "TinyOS Agent Build System" \
   --iso-publisher "TinyOS Agent" \

@@ -1,5 +1,6 @@
 #!/bin/bash
-# 0050-cleanup.hook.chroot — Clean up apt caches and temp files before squash
+# 0090-cleanup.hook.chroot — Clean up apt caches and temp files before squash
+# MUST be the LAST chroot hook (highest number) so all other hooks can use apt.
 # Reduces the final ISO size significantly.
 
 set -euo pipefail

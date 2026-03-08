@@ -23,6 +23,14 @@ Work items and priorities for TinyOS Agent.
 
 ### P1 — High Priority (next milestones)
 
+- [ ] **NET-001** — WiFi connection setup before mesh
+  - After onboarding, before scan: prompt to connect to a WiFi network
+  - Use `iw`/`nmcli` to list SSIDs, let user pick and enter password
+  - Store credentials for reconnect on reboot (wpa_supplicant or NetworkManager)
+  - Required: without network, mesh scanning is limited to USB/BT only
+  - **Packages needed:** `wpasupplicant` or `network-manager` (check which is lighter)
+  - **Estimate:** 3-4 hours
+
 - [ ] **ISO-004** — Add serial console support for headless testing
   - Add `console=ttyS0,115200` to GRUB boot params for serial output
   - Enables automated QEMU boot verification without VNC

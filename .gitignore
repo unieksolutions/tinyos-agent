@@ -22,6 +22,8 @@ __pycache__/
 .venv/
 venv/
 .env
+SECRETS.md
+SSH_KEYS.md
 
 # Editor
 .idea/

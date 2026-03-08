@@ -4,7 +4,7 @@ ts: 2026-03-06T18:00:00Z | git: pending | path: /opt/projects/tinyos-agent
 
 # STATUS
 
-**Project:** TinyOS Agent | **Version:** 0.3.0 | **Updated:** 2026-03-06
+**Project:** TinyOS Agent | **Version:** 0.4.0 | **Updated:** 2026-03-08
 
 ## Overall Progress
 
@@ -13,7 +13,7 @@ ts: 2026-03-06T18:00:00Z | git: pending | path: /opt/projects/tinyos-agent
 | 1. Project Setup | Repo, Makefile, live-build config, package lists | ✅ Complete |
 | 2. Agent TUI Core | Hardware detection, identity/auth, curses UI | ✅ Complete |
 | 3. ISO Build Pipeline | End-to-end ISO generation and QEMU boot test | ✅ Complete (build #11) |
-| 4. ShareMesh Architecture | Mesh networking, resource discovery, model sharing | ❌ Not started |
+| 4. ShareMesh Architecture | Mesh networking, resource discovery, model sharing | 🟡 Discovery module done |
 | 5. Multi-Architecture | ARM64, RISC-V support | ❌ Not started |
 
 ## What's Working (Tested)
@@ -34,7 +34,7 @@ ts: 2026-03-06T18:00:00Z | git: pending | path: /opt/projects/tinyos-agent
 - ✅ llama.cpp Vulkan build hook — **compiles successfully** from source (tag b8185) in Trixie chroot
 - ✅ Agent install hook — systemd service installed and enabled
 - ✅ QEMU available with KVM (user added to kvm group)
-- ✅ **87/87 config tests pass**, **25/25 Python tests pass**
+- ✅ **87/87 config tests pass**, **42/42 Python tests pass**
 
 ### ISO Build (Build #11 — 2026-03-08)
 - ✅ ISO generated: 615MB (`tinyos-agent.iso`)
@@ -45,6 +45,15 @@ ts: 2026-03-06T18:00:00Z | git: pending | path: /opt/projects/tinyos-agent
 - ✅ `llama-cli` and `llama-server` installed at `/usr/local/bin/`
 - ✅ Vulkan 1.4.305 working (Mesa 25.0.7-2, llvmpipe in QEMU)
 - ✅ Hardware detection: GPU, CPU, RAM, disks shown in TUI
+
+### Discovery Module (Phase 4 — 2026-03-08)
+- ✅ 6 transport scanners: LAN (nmap), mDNS (avahi), WiFi (iw), Bluetooth (bluez), USB (lsusb), Thunderbolt (boltctl)
+- ✅ PCI eGPU detection via lspci
+- ✅ Parallel network scans, sequential radio scans (WiFi/BT contention)
+- ✅ Onboarding flow: "Scan for resources?" → "Share your resources?"
+- ✅ TUI menu [2] shows scan results as ASCII table
+- ✅ 17 unit tests with mocked system commands
+- ✅ Packages added: avahi-utils, iw, bluez, nmap, bolt
 
 ### Scripts
 - ✅ `build-llamacpp.sh` — Standalone llama.cpp Vulkan build from pinned tag

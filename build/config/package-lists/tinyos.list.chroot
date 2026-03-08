@@ -113,6 +113,13 @@ usbutils
 hdparm
 acpid
 lm-sensors
+bolt
+
+# ── Discovery — mesh resource scanning ────────────────────────────────────────
+avahi-utils
+iw
+bluez
+nmap
 
 # ── Build / dev essentials (for on-device installs) ────────────────────────────
 git

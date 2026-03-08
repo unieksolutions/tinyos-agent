@@ -52,8 +52,7 @@ Work items and priorities for TinyOS Agent.
 
 ### P2 — Medium Priority
 
-- [ ] **AGENT-001** — Implement "Network Scan" menu (replace placeholder)
-  - **Depends on:** MESH-002
+- [x] **AGENT-001** — Implement "Network Scan" menu ✅ (discovery module, 6 transports)
 
 - [ ] **AGENT-002** — Implement "Mesh Status" menu (replace placeholder)
   - **Depends on:** MESH-003
@@ -88,3 +87,4 @@ Work items and priorities for TinyOS Agent.
 - [x] **BUILD-001** — Fix all config tests for lb 3.0 syntax (87/87 pass)
 - [x] **DISTRO-001** — Upgrade base OS from Debian 12 bookworm → Debian 13 trixie (Vulkan 1.4.309)
 - [x] **ISO-003** — GRUB 2 boot + agent TUI auto-launch (build #11, patched lb_binary_iso)
+- [x] **AGENT-001** — Network Scan menu with 6 transport scanners + onboarding flow

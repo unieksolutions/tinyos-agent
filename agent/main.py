@@ -26,6 +26,7 @@ from agent.identity import (
     update_last_seen,
     set_password,
 )
+from agent.discovery import scan_all, format_table, save_scan, ScanResult
 
 
 # ── Constants ────────────────────────────────────────────────────────────────
@@ -44,6 +45,7 @@ class AgentTUI:
         self.stdscr = stdscr
         self.test_mode = test_mode
         self.hw_report: Optional[HardwareReport] = None
+        self.scan_results: list = []
         self.current_user: Optional[str] = None
         self.running = True
 
@@ -263,7 +265,131 @@ class AgentTUI:
         time.sleep(1)
 
         if self.current_user:
+            self.onboarding_discovery()
             self.main_menu()
+
+    def onboarding_discovery(self):
+        """Post-auth: ask user about scanning and sharing resources."""
+        self.clear_and_border()
+        height, width = self.stdscr.getmaxyx()
+
+        self.print_centered(1, f" {AGENT_NAME} v{__version__} ",
+                            self.color(1) | curses.A_BOLD)
+        self.print_at(2, 1, "─" * (width - 2), self.color(5))
+
+        self.print_at(4, 3, f"Welcome, {self.current_user}!", self.color(2) | curses.A_BOLD)
+
+        # Q1: Scan for resources?
+        self.print_at(6, 3, "Should I scan for nearby resources?", self.color(4))
+        self.print_at(7, 3, "(LAN, WiFi, Bluetooth, USB, eGPU)", self.color(3))
+        self.print_at(9, 3, "[y] Yes, scan now   [n] Not now", self.color(5))
+        self.stdscr.refresh()
+
+        do_scan = False
+        while True:
+            ch = self.stdscr.getch()
+            if ch in (ord("y"), ord("Y")):
+                do_scan = True
+                break
+            elif ch in (ord("n"), ord("N")):
+                break
+
+        if do_scan:
+            self.run_discovery_scan()
+
+        # Q2: Offer resources?
+        self.clear_and_border()
+        self.print_centered(1, f" {AGENT_NAME} v{__version__} ",
+                            self.color(1) | curses.A_BOLD)
+        self.print_at(2, 1, "─" * (width - 2), self.color(5))
+
+        self.print_at(4, 3, "Should I offer my resources to the mesh?", self.color(4))
+        self.print_at(5, 3, "(Other devices can discover and use this node)", self.color(3))
+        self.print_at(7, 3, "[y] Yes, share   [n] Not now", self.color(5))
+        self.stdscr.refresh()
+
+        while True:
+            ch = self.stdscr.getch()
+            if ch in (ord("y"), ord("Y")):
+                # TODO: Start mDNS advertisement (Phase 4: MESH-002)
+                self.print_at(9, 3, "Resource sharing enabled. (mDNS advertisement coming soon)",
+                              self.color(2))
+                self.stdscr.refresh()
+                time.sleep(1.5)
+                break
+            elif ch in (ord("n"), ord("N")):
+                self.print_at(9, 3, "Resource sharing disabled for now.",
+                              self.color(4))
+                self.stdscr.refresh()
+                time.sleep(1)
+                break
+
+    def run_discovery_scan(self):
+        """Run all discovery scans with live progress on screen."""
+        self.clear_and_border()
+        height, width = self.stdscr.getmaxyx()
+
+        self.print_centered(1, " Scanning ", self.color(1) | curses.A_BOLD)
+        self.print_at(2, 1, "─" * (width - 2), self.color(5))
+
+        status_y = 4
+        statuses = {}
+
+        def progress(transport: str, status: str):
+            statuses[transport] = status
+            y = status_y
+            for i, (t, s) in enumerate(statuses.items()):
+                icon = "..." if s == "scanning" else " ok"
+                attr = self.color(3) if s == "scanning" else self.color(2)
+                self.print_at(y + i, 3, f"  [{icon}] {t}", attr)
+            try:
+                self.stdscr.refresh()
+            except curses.error:
+                pass
+
+        self.print_at(status_y - 1, 3, "Scanning all transports...", self.color(4))
+        self.stdscr.refresh()
+
+        self.scan_results = scan_all(progress_callback=progress)
+
+        # Save results
+        try:
+            save_scan(self.scan_results, os.path.join(DATA_DIR, "scan.json"))
+        except OSError:
+            pass
+
+        # Show summary
+        result_y = status_y + len(statuses) + 1
+        self.print_at(result_y, 3,
+                      f"Found {len(self.scan_results)} devices/services.",
+                      self.color(2) | curses.A_BOLD)
+        self.print_at(result_y + 2, 3, "Press any key to continue...", self.color(4))
+        self.stdscr.refresh()
+        self.stdscr.getch()
+
+    def show_scan_results(self):
+        """Display scan results as ASCII table."""
+        self.clear_and_border()
+        height, width = self.stdscr.getmaxyx()
+
+        self.print_centered(1, " Network Scan Results ", self.color(1) | curses.A_BOLD)
+        self.print_at(2, 1, "─" * (width - 2), self.color(5))
+
+        lines = format_table(self.scan_results, width - 4)
+        for i, line in enumerate(lines):
+            if i + 4 >= height - 2:
+                self.print_at(height - 3, 3, f"  ... and {len(lines) - i} more (scroll coming soon)",
+                              self.color(3))
+                break
+            self.print_at(4 + i, 2, line, self.color(4))
+
+        self.print_at(height - 2, 3, "[r] Rescan  [any] Back", self.color(5))
+        self.stdscr.refresh()
+
+        ch = self.stdscr.getch()
+        if ch in (ord("r"), ord("R")):
+            self.run_discovery_scan()
+            self.show_scan_results()
 
     def main_menu(self):
         """Post-auth main menu."""
@@ -277,7 +403,7 @@ class AgentTUI:
 
             menu_items = [
                 ("1", "Hardware Info", "View detected hardware"),
-                ("2", "Network Scan", "Scan for nearby devices (coming soon)"),
+                ("2", "Network Scan", f"Scan for nearby devices ({len(self.scan_results)} found)"),
                 ("3", "Mesh Status", "ShareMesh network status (coming soon)"),
                 ("4", "Settings", "Agent settings"),
                 ("q", "Quit", "Shutdown agent"),
@@ -299,7 +425,7 @@ class AgentTUI:
             if ch == ord("1"):
                 self.show_hardware_detail()
             elif ch == ord("2"):
-                self.show_coming_soon("Network Scan")
+                self.show_scan_results()
             elif ch == ord("3"):
                 self.show_coming_soon("Mesh Status")
             elif ch == ord("4"):

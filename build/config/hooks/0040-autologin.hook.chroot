@@ -1,18 +1,21 @@
 #!/bin/bash
-# 0040-autologin.hook.chroot — Configure agetty auto-login on tty1
-# This provides a shell immediately on boot without interactive login.
+# 0040-autologin.hook.chroot — Disable getty on tty1 so agent service owns it
+# The tinyos-agent.service runs the TUI directly on /dev/tty1.
 
 set -euo pipefail
 
-echo "[hook:autologin] Configuring auto-login on tty1..."
+echo "[hook:autologin] Masking getty@tty1 (agent service owns tty1)..."
 
-mkdir -p /etc/systemd/system/getty@tty1.service.d
+# Prevent getty from grabbing tty1 — the agent service handles it
+ln -sf /dev/null /etc/systemd/system/getty@tty1.service
 
-cat > /etc/systemd/system/getty@tty1.service.d/autologin.conf <<'EOF'
+# Keep getty on tty2+ for emergency shell access
+mkdir -p /etc/systemd/system/getty@tty2.service.d
+cat > /etc/systemd/system/getty@tty2.service.d/autologin.conf <<'EOF'
 [Service]
 ExecStart=
 ExecStart=-/sbin/agetty --autologin agent --noclear %I $TERM
 Type=idle
 EOF
 
-echo "[hook:autologin] Done."
+echo "[hook:autologin] Done. tty1=agent, tty2=shell (Ctrl+Alt+F2)"

@@ -12,7 +12,7 @@ ts: 2026-03-06T18:00:00Z | git: pending | path: /opt/projects/tinyos-agent
 |-------|-------------|--------|
 | 1. Project Setup | Repo, Makefile, live-build config, package lists | ✅ Complete |
 | 2. Agent TUI Core | Hardware detection, identity/auth, curses UI | ✅ Complete |
-| 3. ISO Build Pipeline | End-to-end ISO generation and QEMU boot test | 🟡 Nearly done (build #9 in progress) |
+| 3. ISO Build Pipeline | End-to-end ISO generation and QEMU boot test | ✅ Complete (build #11) |
 | 4. ShareMesh Architecture | Mesh networking, resource discovery, model sharing | ❌ Not started |
 | 5. Multi-Architecture | ARM64, RISC-V support | ❌ Not started |
 
@@ -36,14 +36,15 @@ ts: 2026-03-06T18:00:00Z | git: pending | path: /opt/projects/tinyos-agent
 - ✅ QEMU available with KVM (user added to kvm group)
 - ✅ **87/87 config tests pass**, **25/25 Python tests pass**
 
-### ISO Build (Build #8 — 2026-03-06)
+### ISO Build (Build #11 — 2026-03-08)
 - ✅ ISO generated: 615MB (`tinyos-agent.iso`)
 - ✅ All 8 chroot hooks execute successfully
 - ✅ llama.cpp b8185 compiles with Vulkan backend inside chroot
-- ✅ QEMU boots ISO, shows GRUB menu, autologin to `agent@tinyos` shell
-- ✅ Agent files present at `/opt/tinyos-agent/agent/` on booted image
-- ✅ systemd service installed (`tinyos-agent.service`)
-- 🟡 GRUB boot image needs `-p /boot/grub` fix (build #9 in progress)
+- ✅ GRUB 2.12-9 boots → kernel → agent TUI on tty1
+- ✅ Agent TUI auto-launches via systemd (tty1), fallback shell on tty2
+- ✅ `llama-cli` and `llama-server` installed at `/usr/local/bin/`
+- ✅ Vulkan 1.4.305 working (Mesa 25.0.7-2, llvmpipe in QEMU)
+- ✅ Hardware detection: GPU, CPU, RAM, disks shown in TUI
 
 ### Scripts
 - ✅ `build-llamacpp.sh` — Standalone llama.cpp Vulkan build from pinned tag
@@ -62,7 +63,9 @@ ts: 2026-03-06T18:00:00Z | git: pending | path: /opt/projects/tinyos-agent
 | 6 | Mar 5 | `visudo: command not found` in chroot | Graceful skip + added `sudo` to package list | Fixed |
 | 7 | Mar 6 | Vulkan 1.3.239 too old for llama.cpp b8185 | **Upgraded bookworm → trixie** (Vulkan 1.4.309) | Fixed |
 | 8 | Mar 6 | `grub-mkimage` missing `-p /boot/grub` | `grub2` bootloader + grub-mkimage wrapper hook | Fixed |
-| 9 | Mar 6 | **Building now...** | All fixes combined | Pending |
+| 9 | Mar 7 | grub-mkimage wrapper in chroot, not host | Patch host `/usr/lib/live/build/lb_binary_iso` | Fixed |
+| 10 | Mar 7 | `normal.mod` not found (modules not in core.img) | Add `normal configfile linux search` to grub-mkimage | Fixed |
+| 11 | Mar 8 | getty@tty1 competing with agent service | Mask getty@tty1, agent owns tty1 directly | Fixed ✅ |
 
 ## Key Learnings (live-build 3.0 on Ubuntu)
 

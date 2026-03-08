@@ -19,11 +19,7 @@ Work items and priorities for TinyOS Agent.
 
 ### P0 — Critical (blocking progress)
 
-- [ ] **ISO-003** — Verify GRUB 2 boot + agent TUI auto-launch
-  - Build #9 is running with grub-mkimage `-p /boot/grub` wrapper fix
-  - Boot ISO in QEMU, verify: GRUB menu → kernel boot → autologin → agent TUI
-  - If TUI doesn't auto-launch, check systemd service status
-  - **Estimate:** 1-2 hours (mostly build wait time)
+- [x] **ISO-003** — Verify GRUB 2 boot + agent TUI auto-launch ✅ (build #11)
 
 ### P1 — High Priority (next milestones)
 
@@ -91,3 +87,4 @@ Work items and priorities for TinyOS Agent.
 - [x] **ISO-002** — Fix lb 3.0 incompatibilities (security repo, firmware auto-detect, package names)
 - [x] **BUILD-001** — Fix all config tests for lb 3.0 syntax (87/87 pass)
 - [x] **DISTRO-001** — Upgrade base OS from Debian 12 bookworm → Debian 13 trixie (Vulkan 1.4.309)
+- [x] **ISO-003** — GRUB 2 boot + agent TUI auto-launch (build #11, patched lb_binary_iso)
